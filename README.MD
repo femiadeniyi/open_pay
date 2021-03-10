@@ -1,3 +1,5 @@
+This project was the beginning to enable pay by bank instead of card in apps through Open Banking. It would have cut out middleman fees, allow open money tracking and eliminate fraud bigtime.
+
 ## 2 Things
 
 ### Open Banking is a lie
