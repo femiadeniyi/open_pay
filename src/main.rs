@@ -1,14 +1,26 @@
-// use std::convert::Infallible;
+use std::convert::Infallible;
 // use std::net::SocketAddr;
-// use hyper::{Body, Request, Response, Server};
-// use hyper::service::{make_service_fn, service_fn};
-use open_pay::db::{write_pat, write_profile_id, truncate_table, write_bank};
+extern crate openssl;
+use hyper::{Body, Request, Response, Server, Method, StatusCode};
+use hyper::service::{make_service_fn, service_fn};
+use open_pay::db::{truncate_table, Model, Profile, Pat, Bank, Person};
 use mysql::{Pool};
 use std::env;
-use open_pay::http::{get_profile_id,};
+use open_pay::http::{get_profile_id, borderless_account_id};
+use openssl::rsa::{Rsa, Padding};
 
-
-// async fn hello_world(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+// async fn main_service(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+//     match (req.method(), req.uri().path()) {
+//         (&Method::GET, "/") => {
+//             *response.body_mut() = Body::from("Try POSTing data to /echo");
+//         },
+//         (&Method::POST, "/echo") => {
+//             // we'll be back
+//         },
+//         _ => {
+//             Ok(StatusCode::NOT_FOUND)
+//         },
+//     };
 //     Ok(Response::new("Hello, World".into()))
 // }
 
@@ -22,7 +34,6 @@ fn env_setup(){
 
 #[tokio::main]
 async fn main() {
-
     // env setup
     env_setup();
 
@@ -50,15 +61,60 @@ async fn main() {
         truncate_table(&mut conn,x);
     });
 
-    // setup - pat, profile_id, bank
-    write_pat(&mut conn, pat);
+    // setup - pat, profile, bank, person
+    Model::Pat(vec![
+        Pat{
+            id: pat.to_string(),
+        }
+    ]).write(&mut conn);
+
     let profile_id = get_profile_id(pat).await;
-    write_profile_id(&mut conn,profile_id);
-    write_bank(&mut conn,pat,profile_id);
+    Model::Profile(vec![
+        Profile{
+            id: profile_id
+        }
+    ]).write(&mut conn);
+
+    Model::Bank(vec![
+        Bank{
+            id: None,
+            pat_id:pat.to_string(),
+            profile_id,
+        }
+    ]).write(&mut conn);
+
+    Model::Person(vec![
+        Person{
+            id: None,
+            first_name: "Jack".to_string(),
+            last_name: "Nielson".to_string(),
+            buyer: 1,
+            seller: 0,
+            sort_code: "101010".to_string(),
+            account_number: "12345678".to_string()
+        },
+        Person{
+            id: None,
+            first_name: "Gary".to_string(),
+            last_name: "Barlow".to_string(),
+            buyer: 0,
+            seller: 1,
+            sort_code: "101010".to_string(),
+            account_number: "10101010".to_string()
+        },
+    ]).write(&mut conn);
+
+    borderless_account_id(pat,profile_id).await;
+
+    // setup - pat, profile_id, bank
+    // write_pat(&mut conn, pat);
+
+    // write_profile_id(&mut conn,profile_id);
+    // write_bank(&mut conn,pat,profile_id);
 
 
 
-    // // We'll bind to 127.0.0.1:3000
+    // We'll bind to 127.0.0.1:3000
     // let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     //
     // // A `Service` is needed for every connection, so this

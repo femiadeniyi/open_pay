@@ -767,6 +767,7 @@ dependencies = [
  "hyper",
  "hyper-tls",
  "mysql",
+ "openssl",
  "serde",
  "serde_json",
  "tokio",
